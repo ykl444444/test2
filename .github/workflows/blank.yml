@@ -1,29 +1,39 @@
-{
-  "tagOwners": {
-    "tag:ci": ["autogroup:admin"]
-  },
-  "acls": [
-    // 允许所有内部成员和 CI 节点访问网络
-    {
-      "action": "accept",
-      "src": ["autogroup:member", "tag:ci"],
-      "dst": ["*:*"]
-    }
-  ],
-  "ssh": [
-    // 规则 1：允许你自己的账号设备免密 SSH 登录到你的所有机器
-    {
-      "action": "accept",
-      "src": ["autogroup:member"],
-      "dst": ["autogroup:self"],
-      "users": ["autogroup:nonroot", "root"]
-    },
-    // 规则 2：允许 GitHub Actions（带 tag:ci 的节点）以 ubuntu 用户免密登录
-    {
-      "action": "accept",
-      "src": ["tag:ci"],
-      "dst": ["autogroup:self"],
-      "users": ["ubuntu"] // 请替换为你内网机器实际的 Linux 用户名
-    }
-  ]
-}
+name: Tailscale SSH Debug Session
+
+on:
+  workflow_dispatch: # 建议通过手动触发开启调试
+
+jobs:
+  ssh-session:
+    runs-on: ubuntu-latest
+    # 关键：设置最大运行时间（如 30 分钟），防止忘记关闭导致免费额度耗尽
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Connect to Tailscale with SSH enabled
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+          # 核心参数：开启 Tailscale 内置 SSH 服务并指定主机名
+          args: --ssh --hostname=github-runner-${{ github.run_id }}
+
+      - name: Print connection info & keep runner alive
+        run: |
+          echo "=========================================="
+          echo "Tailscale SSH 已就绪！请在本地终端运行："
+          echo "ssh runner@$(tailscale ip -4)"
+          echo "或使用主机名："
+          echo "ssh runner@github-runner-${{ github.run_id }}"
+          echo "=========================================="
+          echo "调试完成后，请删除 /tmp/keepalive 文件或直接在 GitHub 页面 Cancel 任务："
+          echo "touch /tmp/stop_ssh"
+          
+          # 保持运行直到手动创建 /tmp/stop_ssh 文件或达到 timeout-minutes 超时
+          while [ ! -f /tmp/stop_ssh ]; do
+            sleep 5
+          done
