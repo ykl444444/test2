@@ -1,6 +1,29 @@
-name: Connect
-uses: tailscale/github-action@v4
-with:
-    oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-    oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-    tags: tag:ci
+{
+  "tagOwners": {
+    "tag:ci": ["autogroup:admin"]
+  },
+  "acls": [
+    // 允许所有内部成员和 CI 节点访问网络
+    {
+      "action": "accept",
+      "src": ["autogroup:member", "tag:ci"],
+      "dst": ["*:*"]
+    }
+  ],
+  "ssh": [
+    // 规则 1：允许你自己的账号设备免密 SSH 登录到你的所有机器
+    {
+      "action": "accept",
+      "src": ["autogroup:member"],
+      "dst": ["autogroup:self"],
+      "users": ["autogroup:nonroot", "root"]
+    },
+    // 规则 2：允许 GitHub Actions（带 tag:ci 的节点）以 ubuntu 用户免密登录
+    {
+      "action": "accept",
+      "src": ["tag:ci"],
+      "dst": ["autogroup:self"],
+      "users": ["ubuntu"] // 请替换为你内网机器实际的 Linux 用户名
+    }
+  ]
+}
