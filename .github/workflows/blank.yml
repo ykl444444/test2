@@ -20,7 +20,7 @@ jobs:
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
           # 核心参数：开启 Tailscale 内置 SSH 服务并指定主机名
-          args: "--ssh --hostname=github-runner-${{ github.run_id }}"
+          args: "--ssh"
 
       - name: Print connection info & keep runner alive
         run: |
